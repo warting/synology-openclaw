@@ -1,13 +1,2 @@
 #!/bin/sh
-# Permissive by default — warn, but never fail the install. Docker absence
-# surfaces later (at start-stop-status time) in a user-visible way.
-
-LOG="${SYNOPKG_TEMP_LOGFILE:-/tmp/openclaw-install.log}"
-echo "[$(date)] openclaw preinst: starting" >> "$LOG"
-
-if ! command -v docker >/dev/null 2>&1; then
-    echo "[$(date)] openclaw preinst: WARNING 'docker' not found in PATH. Install Container Manager." >> "$LOG"
-fi
-
-echo "[$(date)] openclaw preinst: done" >> "$LOG"
 exit 0

@@ -1,0 +1,14 @@
+{
+    "docker-project": {
+        "projects": [
+            {
+                "name": "openclaw",
+                "path": "openclaw",
+                "build_params": {
+                    "force_pull": true,
+                    "force_recreate": false
+                }
+            }
+        ]
+    }
+}

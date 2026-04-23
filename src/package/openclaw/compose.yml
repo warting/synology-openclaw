@@ -4,10 +4,8 @@ services:
     container_name: openclaw
     restart: unless-stopped
 
-    # __UI_PORT__ is substituted by scripts/postinst at install time using
-    # the value collected in the install wizard.
     ports:
-      - "__UI_PORT__:18789"
+      - "18789:18789"
 
     environment:
       OPENCLAW_SANDBOX: "0"

@@ -1,47 +1,6 @@
 #!/bin/sh
-# Re-render docker-compose.yml from the new package, preserving the UI port
-# that the user originally picked at install. Self-heals if the data dir
-# is missing (some earlier install may have failed mid-way).
-
-LOG="${SYNOPKG_TEMP_LOGFILE:-/tmp/openclaw-install.log}"
-log() { echo "[$(date)] openclaw postupgrade: $*" >> "$LOG"; }
-log "starting"
-
-PKG_USER="openclaw"
+# Make sure the bind-mount targets exist after upgrade (idempotent).
 DATA_DIR="/volume1/docker/openclaw"
-
-# --- Self-heal: make sure data dirs exist (same as postinst). ---
-mkdir -p "$DATA_DIR/config" "$DATA_DIR/workspace" 2>>"$LOG"
-chown -R 1000:1000 "$DATA_DIR/config" "$DATA_DIR/workspace" 2>>"$LOG" || true
-
-# Recover previously-chosen port from existing compose ("ports: - NNNNN:18789"),
-# falling back to the default.
-UI_PORT="18789"
-OLD="$DATA_DIR/docker-compose.yml"
-if [ -f "$OLD" ]; then
-    found="$(awk '/ports:/{f=1; next} f && /- "/{gsub(/.*"|:.*/, ""); print; exit}' "$OLD" 2>/dev/null || true)"
-    [ -n "$found" ] && UI_PORT="$found"
-    log "preserved UI_PORT=$UI_PORT"
-fi
-
-if [ -f "$SYNOPKG_PKGDEST/docker-compose.yml" ]; then
-    sed -e "s|__UI_PORT__|$UI_PORT|g" \
-        "$SYNOPKG_PKGDEST/docker-compose.yml" \
-        > "$DATA_DIR/docker-compose.yml" 2>>"$LOG"
-fi
-chown "$PKG_USER":users "$DATA_DIR/docker-compose.yml" "$DATA_DIR" 2>>"$LOG" || true
-chmod 644 "$DATA_DIR/docker-compose.yml" 2>>"$LOG" || true
-
-# Refresh launcher port.
-LAUNCHER="$SYNOPKG_PKGDEST/ui/config"
-if [ -f "$LAUNCHER" ]; then
-    sed -i "s|__UI_PORT__|$UI_PORT|g" "$LAUNCHER" 2>>"$LOG"
-fi
-
-# Pull new image (best-effort, background).
-if command -v docker >/dev/null 2>&1; then
-    (cd "$DATA_DIR" && docker compose pull) >>"$LOG" 2>&1 &
-fi
-
-log "done"
+mkdir -p "$DATA_DIR/config" "$DATA_DIR/workspace"
+chown -R 1000:1000 "$DATA_DIR/config" "$DATA_DIR/workspace" 2>/dev/null || true
 exit 0

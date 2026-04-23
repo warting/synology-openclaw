@@ -1,8 +1,2 @@
 #!/bin/sh
-DATA_DIR="/volume1/docker/openclaw"
-
-# DSM's lifecycle should have stopped us via start-stop-status already, but
-# belt-and-suspenders in case the user had it force-stopped or similar.
-(cd "$DATA_DIR" 2>/dev/null && docker compose down) >> "$SYNOPKG_TEMP_LOGFILE" 2>&1 || true
-
 exit 0
