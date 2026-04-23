@@ -5,7 +5,7 @@ DATA_DIR="/volume1/docker/openclaw"
 (cd "$DATA_DIR" 2>/dev/null && docker compose down -v) >> "$SYNOPKG_TEMP_LOGFILE" 2>&1 || true
 
 # User opted in to full data removal in the uninstall wizard.
-if [ "${wizard_REMOVE_DATA}" = "true" ]; then
+if [ "${wizard_REMOVE_DATA:-false}" = "true" ]; then
     rm -rf "$DATA_DIR"
 fi
 

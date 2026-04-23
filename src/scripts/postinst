@@ -15,7 +15,7 @@ cp "$SYNOPKG_PKGDEST/docker-compose.yml" "$DATA_DIR/docker-compose.yml"
 UI_PORT="${wizard_UI_PORT:-18789}"
 {
     echo "UI_PORT=$UI_PORT"
-    if [ -n "${wizard_OLLAMA_HOST}" ]; then
+    if [ -n "${wizard_OLLAMA_HOST:-}" ]; then
         port="${wizard_OLLAMA_PORT:-11434}"
         echo "OLLAMA_BASE_URL=http://${wizard_OLLAMA_HOST}:${port}"
         echo "OLLAMA_API_KEY=ollama-local"

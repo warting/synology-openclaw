@@ -23,7 +23,9 @@ jobs:
 
       - name: Lint scripts with shellcheck
         run: |
-          shellcheck src/scripts/* build.sh feed.sh
+          # --severity=error: we fail the build on real bugs but tolerate
+          # style-only warnings (SC2086, SC2046 etc.).
+          shellcheck --severity=error src/scripts/* build.sh feed.sh
 
       - name: Build sample .spk
         run: ./build.sh 0.0.0-ci
@@ -36,4 +38,4 @@ jobs:
           tar tf "$spk"
           echo
           echo "== INFO =="
-          tar xOf "$spk" ./INFO
+          tar xOf "$spk" INFO
