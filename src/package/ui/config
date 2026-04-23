@@ -1,0 +1,12 @@
+{
+    "SYNO.SDS.OpenClaw.Application": {
+        "title": "OpenClaw",
+        "desc": "OpenClaw AI agent",
+        "icon": "images/icon_256.png",
+        "type": "url",
+        "url": "http://:__UI_PORT__/",
+        "allUsers": true,
+        "hidden": false,
+        "allowMultiInstance": false
+    }
+}

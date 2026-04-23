@@ -1,0 +1,35 @@
+#!/bin/sh
+# Runs after package.tgz has been extracted to $SYNOPKG_PKGDEST.
+# wizard_* env vars come from WIZARD_UIFILES/install_uifile.
+set -e
+
+DATA_DIR="/volume1/docker/openclaw"
+mkdir -p "$DATA_DIR/config" "$DATA_DIR/workspace"
+chown -R 1000:1000 "$DATA_DIR"
+
+# Copy the static compose file into the data dir (where docker-compose runs).
+cp "$SYNOPKG_PKGDEST/docker-compose.yml" "$DATA_DIR/docker-compose.yml"
+
+# Render the .env from wizard values. Only variables that are set are written —
+# unset Ollama vars stay out of the container entirely.
+UI_PORT="${wizard_UI_PORT:-18789}"
+{
+    echo "UI_PORT=$UI_PORT"
+    if [ -n "${wizard_OLLAMA_HOST}" ]; then
+        port="${wizard_OLLAMA_PORT:-11434}"
+        echo "OLLAMA_BASE_URL=http://${wizard_OLLAMA_HOST}:${port}"
+        echo "OLLAMA_API_KEY=ollama-local"
+    fi
+} > "$DATA_DIR/.env"
+chmod 600 "$DATA_DIR/.env"
+
+# Substitute the UI port into the DSM desktop launcher config.
+LAUNCHER="$SYNOPKG_PKGDEST/ui/config"
+if [ -f "$LAUNCHER" ]; then
+    sed -i "s|__UI_PORT__|$UI_PORT|g" "$LAUNCHER"
+fi
+
+# Pull the image now so `start` is fast and registry errors surface during install.
+(cd "$DATA_DIR" && docker compose pull) >> "$SYNOPKG_TEMP_LOGFILE" 2>&1 || true
+
+exit 0

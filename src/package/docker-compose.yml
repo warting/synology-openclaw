@@ -1,0 +1,27 @@
+services:
+  openclaw:
+    image: ghcr.io/openclaw/openclaw:latest
+    container_name: openclaw
+    restart: unless-stopped
+
+    ports:
+      - "${UI_PORT:-18789}:18789"
+
+    environment:
+      OPENCLAW_SANDBOX: "0"
+      OPENCLAW_BIND: "0.0.0.0"
+
+    # Any variable present in .env becomes a container env var.
+    # Variables absent from .env (e.g. OLLAMA_BASE_URL when Ollama is not
+    # pre-configured) are simply not set in the container.
+    env_file:
+      - .env
+
+    volumes:
+      - /volume1/docker/openclaw/config:/home/node/.openclaw
+      - /volume1/docker/openclaw/workspace:/home/node/.openclaw/workspace
+
+    # Deliberately NOT mounting /var/run/docker.sock.
+    # OPENCLAW_SANDBOX stays "0" so tool execution runs inside this container
+    # rather than spawning sibling containers via the host's Docker daemon,
+    # which would be equivalent to giving this container root on the NAS.

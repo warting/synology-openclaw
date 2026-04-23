@@ -1,0 +1,21 @@
+#!/bin/sh
+# Ship any compose-file changes from the new package version; preserve user's
+# .env as-is so Ollama host / UI port choices survive upgrades.
+set -e
+
+DATA_DIR="/volume1/docker/openclaw"
+cp "$SYNOPKG_PKGDEST/docker-compose.yml" "$DATA_DIR/docker-compose.yml"
+
+# Re-substitute the launcher port from the preserved .env's UI_PORT.
+if [ -f "$DATA_DIR/.env" ]; then
+    UI_PORT="$(grep '^UI_PORT=' "$DATA_DIR/.env" | cut -d= -f2)"
+    LAUNCHER="$SYNOPKG_PKGDEST/ui/config"
+    if [ -n "$UI_PORT" ] && [ -f "$LAUNCHER" ]; then
+        sed -i "s|__UI_PORT__|$UI_PORT|g" "$LAUNCHER"
+    fi
+fi
+
+# Pull new image before DSM restarts us.
+(cd "$DATA_DIR" && docker compose pull) >> "$SYNOPKG_TEMP_LOGFILE" 2>&1 || true
+
+exit 0

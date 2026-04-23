@@ -1,0 +1,14 @@
+#!/bin/sh
+# Sanity checks before install.
+
+if ! command -v docker >/dev/null 2>&1; then
+    echo "Container Manager (docker) is required but was not found." >> "$SYNOPKG_TEMP_LOGFILE"
+    exit 1
+fi
+
+if ! docker compose version >/dev/null 2>&1; then
+    echo "'docker compose' is not available. Please upgrade Container Manager." >> "$SYNOPKG_TEMP_LOGFILE"
+    exit 1
+fi
+
+exit 0

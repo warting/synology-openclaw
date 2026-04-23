@@ -1,0 +1,24 @@
+#!/bin/sh
+DATA_DIR="/volume1/docker/openclaw"
+
+case "$1" in
+    start)
+        (cd "$DATA_DIR" && docker compose up -d) >> "$SYNOPKG_TEMP_LOGFILE" 2>&1
+        exit $?
+        ;;
+    stop)
+        (cd "$DATA_DIR" && docker compose down) >> "$SYNOPKG_TEMP_LOGFILE" 2>&1
+        exit $?
+        ;;
+    status)
+        if [ -d "$DATA_DIR" ] && [ "$(cd "$DATA_DIR" && docker compose ps --quiet openclaw 2>/dev/null | wc -l | tr -d ' ')" -gt 0 ]; then
+            exit 0
+        fi
+        exit 3
+        ;;
+    log)
+        echo "$SYNOPKG_TEMP_LOGFILE"
+        exit 0
+        ;;
+esac
+exit 0

@@ -1,0 +1,39 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  lint-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install tools
+        run: sudo apt-get update && sudo apt-get install -y jq shellcheck
+
+      - name: Lint wizard JSON
+        run: |
+          for f in src/WIZARD_UIFILES/* feed/packages.json src/conf/privilege src/package/ui/config; do
+              echo "-- $f"
+              jq . "$f" >/dev/null
+          done
+
+      - name: Lint scripts with shellcheck
+        run: |
+          shellcheck src/scripts/* build.sh feed.sh
+
+      - name: Build sample .spk
+        run: ./build.sh 0.0.0-ci
+
+      - name: Inspect .spk contents
+        run: |
+          set -eu
+          spk="$(ls build/*.spk | head -1)"
+          echo "== $spk =="
+          tar tf "$spk"
+          echo
+          echo "== INFO =="
+          tar xOf "$spk" ./INFO

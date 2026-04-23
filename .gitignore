@@ -1,0 +1,3 @@
+build/
+*.spk
+.DS_Store

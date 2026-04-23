@@ -1,0 +1,7 @@
+#!/bin/sh
+DATA_DIR="/volume1/docker/openclaw"
+
+# Make sure the container is stopped before DSM removes package files.
+(cd "$DATA_DIR" 2>/dev/null && docker compose down) >> "$SYNOPKG_TEMP_LOGFILE" 2>&1 || true
+
+exit 0

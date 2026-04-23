@@ -1,0 +1,18 @@
+[
+    {
+        "step_title": "Uninstall OpenClaw",
+        "items": [
+            {
+                "type": "multiselect",
+                "desc": "Data",
+                "subitems": [
+                    {
+                        "key": "REMOVE_DATA",
+                        "desc": "Also delete /volume1/docker/openclaw (config, workspace, chat history)",
+                        "defaultValue": false
+                    }
+                ]
+            }
+        ]
+    }
+]
