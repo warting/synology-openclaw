@@ -1,23 +1,40 @@
 #!/bin/sh
 DATA_DIR="/volume1/docker/openclaw"
+LOG="${SYNOPKG_TEMP_LOGFILE:-/tmp/openclaw-start.log}"
+
+ensure_dir() {
+    # Self-heal if postinst never got to create this (e.g. after a failed
+    # install that still left the package registered).
+    if [ ! -d "$DATA_DIR" ] || [ ! -f "$DATA_DIR/docker-compose.yml" ]; then
+        echo "[$(date)] start-stop-status: $DATA_DIR or docker-compose.yml missing" >> "$LOG"
+        return 1
+    fi
+    return 0
+}
 
 case "$1" in
     start)
-        (cd "$DATA_DIR" && docker compose up -d) >> "$SYNOPKG_TEMP_LOGFILE" 2>&1
+        if ! ensure_dir; then
+            exit 1
+        fi
+        cd "$DATA_DIR" && docker compose up -d >> "$LOG" 2>&1
         exit $?
         ;;
     stop)
-        (cd "$DATA_DIR" && docker compose down) >> "$SYNOPKG_TEMP_LOGFILE" 2>&1
-        exit $?
+        if [ -d "$DATA_DIR" ]; then
+            cd "$DATA_DIR" && docker compose down >> "$LOG" 2>&1
+        fi
+        exit 0
         ;;
     status)
-        if [ -d "$DATA_DIR" ] && [ "$(cd "$DATA_DIR" && docker compose ps --quiet openclaw 2>/dev/null | wc -l | tr -d ' ')" -gt 0 ]; then
-            exit 0
+        if ! ensure_dir; then
+            exit 3
         fi
-        exit 3
+        running=$(cd "$DATA_DIR" && docker compose ps --quiet openclaw 2>/dev/null | wc -l | tr -d ' ')
+        [ "${running:-0}" -gt 0 ] && exit 0 || exit 3
         ;;
     log)
-        echo "$SYNOPKG_TEMP_LOGFILE"
+        echo "$LOG"
         exit 0
         ;;
 esac
