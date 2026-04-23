@@ -1,6 +1,7 @@
 [
     {
         "step_title": "OpenClaw",
+        "desc": "OpenClaw's LLM providers (Anthropic, OpenAI, Ollama, LM Studio, ...) are configured from inside OpenClaw after install. You only need to pick a host port here.",
         "items": [
             {
                 "type": "textfield",
@@ -12,39 +13,6 @@
                         "validator": {
                             "allowBlank": false,
                             "regex": "/^[0-9]{2,5}$/"
-                        }
-                    }
-                ]
-            }
-        ]
-    },
-    {
-        "step_title": "Optional: pre-configure Ollama",
-        "desc": "If you run Ollama on your LAN, filling this in will pre-configure it in OpenClaw. Leave blank to configure any provider (Anthropic, OpenAI, Ollama, LM Studio, ...) from OpenClaw's onboarding UI after install.",
-        "items": [
-            {
-                "type": "textfield",
-                "desc": "Ollama host (IP or hostname) - optional",
-                "subitems": [
-                    {
-                        "key": "OLLAMA_HOST",
-                        "defaultValue": "",
-                        "validator": {
-                            "allowBlank": true
-                        }
-                    }
-                ]
-            },
-            {
-                "type": "textfield",
-                "desc": "Ollama port",
-                "subitems": [
-                    {
-                        "key": "OLLAMA_PORT",
-                        "defaultValue": "11434",
-                        "validator": {
-                            "allowBlank": true,
-                            "regex": "/^([0-9]{2,5})?$/"
                         }
                     }
                 ]

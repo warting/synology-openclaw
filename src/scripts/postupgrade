@@ -1,6 +1,6 @@
 #!/bin/sh
-# Ship any compose-file changes from the new package version; preserve the
-# user's .env as-is so Ollama host / UI port choices survive upgrades.
+# Re-render docker-compose.yml from the new package, preserving the UI port
+# that the user originally picked at install.
 set -e
 
 PKG_USER="openclaw"
@@ -11,17 +11,25 @@ for g in docker containermanager synocontainer; do
     synogroup --memberadd "$g" "$PKG_USER" >/dev/null 2>&1 || true
 done
 
-cp "$SYNOPKG_PKGDEST/docker-compose.yml" "$DATA_DIR/docker-compose.yml"
+# Recover the previously-chosen port from the existing compose file
+# ("ports: - "NNNNN:18789"") — otherwise fall back to the default.
+OLD="$DATA_DIR/docker-compose.yml"
+UI_PORT="18789"
+if [ -f "$OLD" ]; then
+    found="$(awk '/ports:/{f=1; next} f && /- "/{gsub(/.*"|:.*/, ""); print; exit}' "$OLD" || true)"
+    [ -n "$found" ] && UI_PORT="$found"
+fi
+
+sed -e "s|__UI_PORT__|$UI_PORT|g" \
+    "$SYNOPKG_PKGDEST/docker-compose.yml" \
+    > "$DATA_DIR/docker-compose.yml"
 chown "$PKG_USER":users "$DATA_DIR/docker-compose.yml" || true
 chmod 644 "$DATA_DIR/docker-compose.yml"
 
-# Re-substitute the launcher port from the preserved .env's UI_PORT.
-if [ -f "$DATA_DIR/.env" ]; then
-    UI_PORT="$(grep '^UI_PORT=' "$DATA_DIR/.env" | cut -d= -f2)"
-    LAUNCHER="$SYNOPKG_PKGDEST/ui/config"
-    if [ -n "$UI_PORT" ] && [ -f "$LAUNCHER" ]; then
-        sed -i "s|__UI_PORT__|$UI_PORT|g" "$LAUNCHER"
-    fi
+# Refresh launcher port.
+LAUNCHER="$SYNOPKG_PKGDEST/ui/config"
+if [ -f "$LAUNCHER" ]; then
+    sed -i "s|__UI_PORT__|$UI_PORT|g" "$LAUNCHER"
 fi
 
 # Pull new image before DSM restarts us.

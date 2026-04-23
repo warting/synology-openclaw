@@ -11,7 +11,7 @@ Install, upgrade, and uninstall from Package Center like any other DSM package.
    - Name: `warting`
    - Location: `https://warting.github.io/synology-openclaw/`
 3. **Community** tab → **OpenClaw** → **Install**.
-4. The install wizard asks for the web UI port (default `18789`) and, optionally, an Ollama host. Leave Ollama blank to configure provider(s) from OpenClaw's own UI later.
+4. The install wizard asks only for the web UI port (default `18789`). LLM providers (Anthropic, OpenAI, Ollama, LM Studio, …) are configured from inside OpenClaw's own UI after install.
 
 Alternatively, download a `.spk` from [Releases](https://github.com/warting/synology-openclaw/releases) and use **Manual Install**.
 

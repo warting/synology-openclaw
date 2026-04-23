@@ -4,7 +4,7 @@
 #
 # Note: install scripts (preinst/postinst/preuninst/postuninst/pre+postupgrade)
 # always run as root regardless of conf/privilege. Only the package daemon
-# (i.e. start-stop-status) runs as the user defined there.
+# (start-stop-status) runs as the user defined there.
 set -e
 
 PKG_USER="openclaw"
@@ -17,31 +17,18 @@ for g in docker containermanager synocontainer; do
 done
 
 # --- 2. Data directories. Container runs as node (UID 1000) internally, so
-# config + workspace must be writable by UID 1000. docker-compose.yml and .env
-# are read by the docker *client* (= the package user), so those go to
-# PKG_USER.
+# config + workspace must be writable by UID 1000. docker-compose.yml is read
+# by the docker *client* (the package user), so it goes to PKG_USER.
 mkdir -p "$DATA_DIR/config" "$DATA_DIR/workspace"
 chown -R 1000:1000 "$DATA_DIR/config" "$DATA_DIR/workspace"
 
-cp "$SYNOPKG_PKGDEST/docker-compose.yml" "$DATA_DIR/docker-compose.yml"
-chown "$PKG_USER":users "$DATA_DIR/docker-compose.yml" || true
-chmod 644 "$DATA_DIR/docker-compose.yml"
-
-# --- 3. Build .env from wizard values. Only set variables are written. ---
+# --- 3. Render docker-compose.yml with the chosen UI port. ---
 UI_PORT="${wizard_UI_PORT:-18789}"
-{
-    echo "UI_PORT=$UI_PORT"
-    if [ -n "${wizard_OLLAMA_HOST:-}" ]; then
-        port="${wizard_OLLAMA_PORT:-11434}"
-        echo "OLLAMA_BASE_URL=http://${wizard_OLLAMA_HOST}:${port}"
-        echo "OLLAMA_API_KEY=ollama-local"
-    fi
-} > "$DATA_DIR/.env"
-chown "$PKG_USER":users "$DATA_DIR/.env" || true
-chmod 640 "$DATA_DIR/.env"
-
-# Package user needs to cd into the data dir.
-chown "$PKG_USER":users "$DATA_DIR" || true
+sed -e "s|__UI_PORT__|$UI_PORT|g" \
+    "$SYNOPKG_PKGDEST/docker-compose.yml" \
+    > "$DATA_DIR/docker-compose.yml"
+chown "$PKG_USER":users "$DATA_DIR/docker-compose.yml" "$DATA_DIR" || true
+chmod 644 "$DATA_DIR/docker-compose.yml"
 
 # --- 4. Substitute the UI port into the DSM desktop launcher config. ---
 LAUNCHER="$SYNOPKG_PKGDEST/ui/config"
