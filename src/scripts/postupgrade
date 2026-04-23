@@ -1,10 +1,19 @@
 #!/bin/sh
-# Ship any compose-file changes from the new package version; preserve user's
-# .env as-is so Ollama host / UI port choices survive upgrades.
+# Ship any compose-file changes from the new package version; preserve the
+# user's .env as-is so Ollama host / UI port choices survive upgrades.
 set -e
 
+PKG_USER="openclaw"
 DATA_DIR="/volume1/docker/openclaw"
+
+# Re-assert docker group membership in case it got cleared between versions.
+for g in docker containermanager synocontainer; do
+    synogroup --memberadd "$g" "$PKG_USER" >/dev/null 2>&1 || true
+done
+
 cp "$SYNOPKG_PKGDEST/docker-compose.yml" "$DATA_DIR/docker-compose.yml"
+chown "$PKG_USER":users "$DATA_DIR/docker-compose.yml" || true
+chmod 644 "$DATA_DIR/docker-compose.yml"
 
 # Re-substitute the launcher port from the preserved .env's UI_PORT.
 if [ -f "$DATA_DIR/.env" ]; then
@@ -16,6 +25,7 @@ if [ -f "$DATA_DIR/.env" ]; then
 fi
 
 # Pull new image before DSM restarts us.
-(cd "$DATA_DIR" && docker compose pull) >> "$SYNOPKG_TEMP_LOGFILE" 2>&1 || true
+su - "$PKG_USER" -s /bin/sh -c "cd '$DATA_DIR' && docker compose pull" \
+    >> "$SYNOPKG_TEMP_LOGFILE" 2>&1 || true
 
 exit 0

@@ -1,5 +1,6 @@
 {
     "defaults": {
-        "run-as": "root"
-    }
+        "run-as": "package"
+    },
+    "username": "openclaw"
 }

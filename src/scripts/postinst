@@ -1,17 +1,33 @@
 #!/bin/sh
-# Runs after package.tgz has been extracted to $SYNOPKG_PKGDEST.
+# Runs as root after package.tgz has been extracted to $SYNOPKG_PKGDEST.
 # wizard_* env vars come from WIZARD_UIFILES/install_uifile.
+#
+# Note: install scripts (preinst/postinst/preuninst/postuninst/pre+postupgrade)
+# always run as root regardless of conf/privilege. Only the package daemon
+# (i.e. start-stop-status) runs as the user defined there.
 set -e
 
+PKG_USER="openclaw"
 DATA_DIR="/volume1/docker/openclaw"
+
+# --- 1. Let our package user talk to the Docker daemon. ---
+# Try every group name Container Manager / Docker has used across DSM versions.
+for g in docker containermanager synocontainer; do
+    synogroup --memberadd "$g" "$PKG_USER" >/dev/null 2>&1 || true
+done
+
+# --- 2. Data directories. Container runs as node (UID 1000) internally, so
+# config + workspace must be writable by UID 1000. docker-compose.yml and .env
+# are read by the docker *client* (= the package user), so those go to
+# PKG_USER.
 mkdir -p "$DATA_DIR/config" "$DATA_DIR/workspace"
-chown -R 1000:1000 "$DATA_DIR"
+chown -R 1000:1000 "$DATA_DIR/config" "$DATA_DIR/workspace"
 
-# Copy the static compose file into the data dir (where docker-compose runs).
 cp "$SYNOPKG_PKGDEST/docker-compose.yml" "$DATA_DIR/docker-compose.yml"
+chown "$PKG_USER":users "$DATA_DIR/docker-compose.yml" || true
+chmod 644 "$DATA_DIR/docker-compose.yml"
 
-# Render the .env from wizard values. Only variables that are set are written —
-# unset Ollama vars stay out of the container entirely.
+# --- 3. Build .env from wizard values. Only set variables are written. ---
 UI_PORT="${wizard_UI_PORT:-18789}"
 {
     echo "UI_PORT=$UI_PORT"
@@ -21,15 +37,20 @@ UI_PORT="${wizard_UI_PORT:-18789}"
         echo "OLLAMA_API_KEY=ollama-local"
     fi
 } > "$DATA_DIR/.env"
-chmod 600 "$DATA_DIR/.env"
+chown "$PKG_USER":users "$DATA_DIR/.env" || true
+chmod 640 "$DATA_DIR/.env"
 
-# Substitute the UI port into the DSM desktop launcher config.
+# Package user needs to cd into the data dir.
+chown "$PKG_USER":users "$DATA_DIR" || true
+
+# --- 4. Substitute the UI port into the DSM desktop launcher config. ---
 LAUNCHER="$SYNOPKG_PKGDEST/ui/config"
 if [ -f "$LAUNCHER" ]; then
     sed -i "s|__UI_PORT__|$UI_PORT|g" "$LAUNCHER"
 fi
 
-# Pull the image now so `start` is fast and registry errors surface during install.
-(cd "$DATA_DIR" && docker compose pull) >> "$SYNOPKG_TEMP_LOGFILE" 2>&1 || true
+# --- 5. Pre-pull the image as the package user so layers land in its cache. ---
+su - "$PKG_USER" -s /bin/sh -c "cd '$DATA_DIR' && docker compose pull" \
+    >> "$SYNOPKG_TEMP_LOGFILE" 2>&1 || true
 
 exit 0
