@@ -1,9 +1,4 @@
 #!/bin/sh
-# DSM's Docker Project resource runs `docker compose up -d` on our behalf
-# after this script. We just need the bind-mount targets to exist with
-# ownership matching the container's internal UID (node = 1000).
-
-DATA_DIR="/volume1/docker/openclaw"
-mkdir -p "$DATA_DIR/config" "$DATA_DIR/workspace"
-chown -R 1000:1000 "$DATA_DIR/config" "$DATA_DIR/workspace" 2>/dev/null || true
+# Container Manager's Docker Project worker handles compose lifecycle,
+# volume creation, and image pulls. We have nothing to do here.
 exit 0

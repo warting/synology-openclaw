@@ -1,6 +1,2 @@
 #!/bin/sh
-# Make sure the bind-mount targets exist after upgrade (idempotent).
-DATA_DIR="/volume1/docker/openclaw"
-mkdir -p "$DATA_DIR/config" "$DATA_DIR/workspace"
-chown -R 1000:1000 "$DATA_DIR/config" "$DATA_DIR/workspace" 2>/dev/null || true
 exit 0

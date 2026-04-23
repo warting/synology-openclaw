@@ -1,9 +1,2 @@
 #!/bin/sh
-# DSM's Docker Project resource stops and removes the compose project and
-# its images. User data (config, workspace) under /volume1/docker/openclaw
-# is left in place unless the uninstall wizard asked to remove it.
-
-if [ "${wizard_REMOVE_DATA:-false}" = "true" ]; then
-    rm -rf "/volume1/docker/openclaw"
-fi
 exit 0

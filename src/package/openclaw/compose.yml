@@ -11,10 +11,18 @@ services:
       OPENCLAW_SANDBOX: "0"
       OPENCLAW_BIND: "0.0.0.0"
 
+    # Named Docker volumes — no bind mounts, no host-side mkdir/chown.
+    # Container Manager initializes the volume with ownership matching the
+    # container's internal user (node, UID 1000) so the package itself
+    # never needs root.
     volumes:
-      - /volume1/docker/openclaw/config:/home/node/.openclaw
-      - /volume1/docker/openclaw/workspace:/home/node/.openclaw/workspace
+      - openclaw_config:/home/node/.openclaw
+      - openclaw_workspace:/home/node/.openclaw/workspace
 
     # Deliberately NOT mounting /var/run/docker.sock.
     # Model providers (Anthropic, OpenAI, Ollama, LM Studio, ...) are
     # configured from within OpenClaw's own UI, not via env vars here.
+
+volumes:
+  openclaw_config:
+  openclaw_workspace:
