@@ -1,62 +1,60 @@
 # synology-openclaw
 
-Unofficial Synology DSM package that installs [OpenClaw](https://openclaw.ai) via Container Manager.
+Run [OpenClaw](https://openclaw.ai) on a Synology NAS via Container Manager, with sensible security defaults.
 
-Install, upgrade, and uninstall from Package Center like any other DSM package.
+## Install via Container Manager (recommended)
 
-## Install on DSM
+Takes about 2 minutes.
 
-1. DSM → **Package Center → Settings → General** → Trust Level: **Any publisher**.
-2. **Package Center → Settings → Package Sources → Add**:
-   - Name: `warting`
-   - Location: `https://warting.github.io/synology-openclaw/`
-3. **Community** tab → **OpenClaw** → **Install**.
-4. The install wizard asks only for the web UI port (default `18789`). LLM providers (Anthropic, OpenAI, Ollama, LM Studio, …) are configured from inside OpenClaw's own UI after install.
+1. On DSM, open **Package Center** and confirm **Container Manager** is installed. If not, install it (free, published by Synology).
+2. Open **Container Manager → Project → Create**.
+3. Fill in:
+   - **Project name**: `openclaw`
+   - **Path**: click to browse, pick the `docker` shared folder and put the project under `docker/openclaw` (DSM will create that folder if it doesn't exist)
+   - **Source**: *Create docker-compose.yml* — paste the content of [`compose.yml`](compose.yml) from this repo into the editor
+4. Click **Next** → review → **Done**. Container Manager pulls the image and starts the container.
+5. Wait ~30 seconds for the first start, then browse to `http://<your-nas-ip>:18789/`.
+6. OpenClaw's onboarding screen appears. Configure your LLM provider(s) (Anthropic, OpenAI, Ollama, LM Studio, …) there — that's where credentials and model selection live.
 
-Alternatively, download a `.spk` from [Releases](https://github.com/warting/synology-openclaw/releases) and use **Manual Install**.
+### What you get
 
-## What the package does
+- OpenClaw running as a restart-policy container, listening on port `18789`.
+- Persistent data in `/volume1/docker/openclaw/config` and `…/workspace`. Those dirs survive upgrades; back them up with Hyper Backup if you care about your chat history.
+- **No Docker socket mounted** — OpenClaw's per-tool sandbox stays off. Mounting the socket would be equivalent to giving the container root on the NAS, which defeats the containment point.
+- **Same-LAN networking** — no VLAN isolation. The container can reach any device on your LAN. If you want strict network isolation, configure a VLAN + firewall rules in your UniFi controller; that's a router concern, not a container concern.
 
-- Runs the `ghcr.io/openclaw/openclaw` container under `docker compose`.
-- Stores persistent data under `/volume1/docker/openclaw/`.
-- Publishes the OpenClaw gateway on `<NAS_IP>:18789` (or the port you picked at install).
-- Adds an OpenClaw icon to the DSM main menu.
+### Upgrading
 
-### What it does NOT do
-
-- **No network isolation.** The container runs on the NAS's default Docker bridge and can reach anything on your LAN. If you want VLAN-level isolation, configure that in your router/switch.
-- **No Docker socket mount.** OpenClaw's built-in per-tool sandbox is intentionally left off (`OPENCLAW_SANDBOX=0`). Mounting `/var/run/docker.sock` into the container would be equivalent to giving it root on the NAS.
-
-## Development
-
-Requires `bash`, `tar`, `jq`, `shasum`/`sha256sum`.
+Container Manager → Project → `openclaw` → **Action → Pull and rebuild**. Or, from SSH:
 
 ```sh
-./build.sh 0.1.0-0001          # builds build/openclaw-0.1.0-0001.spk
-./build.sh 0.1.0-0001 2026.4.10  # also pin the OpenClaw image tag
+cd /volume1/docker/openclaw
+sudo docker compose pull
+sudo docker compose up -d
 ```
 
-Copy the `.spk` to your NAS and install via **Package Center → Manual Install** for testing.
+### Changing the host port
 
-Tag and push `v*.*.*` to trigger the release workflow:
+If 18789 conflicts with something else, edit the Project's compose file (Container Manager → Project → openclaw → Edit) and change `18789:18789` to `<other-port>:18789`, then rebuild.
+
+## Why not a Synology .spk package?
+
+Tried. DSM 7.2's unsigned-package validator treats `run-as: package` configs as "Invalid file format" at upload time, while refusing to install anything that declares `run-as: root`. SynoCommunity packages work around this by being signed against a trusted publisher key — not something a personal repo can do without either Synology's development token (requires Synology support ticket) or wider distribution infrastructure.
+
+Leaving the SPK scaffolding in [`src/`](src/) and [`build.sh`](build.sh) for future use — if the situation changes (dev token obtained, or we're OK with users adding a custom GPG key to DSM's trust list) it's already built.
+
+## Development (SPK, currently blocked)
+
+Build the `.spk` locally:
 
 ```sh
-git tag v0.1.0
-git push --tags
+./build.sh 0.1.0-0001
+# produces build/openclaw-0.1.0-0001.spk
 ```
 
-GitHub Actions builds the `.spk`, creates a Release, regenerates `feed/packages.json`, and deploys the feed to GitHub Pages.
+The package structure matches Synology's documented schema, but the upload validator in DSM 7.2 rejects unsigned third-party packages that try to run as anything other than root, and refuses to install root packages unless signed. See the [Synology developer guide on privileges](https://help.synology.com/developer-guide/privilege/preface.html).
 
-## Layout
-
-```
-src/            SPK source — scripts, INFO, wizard, compose file
-feed/           GitHub Pages site: packages.json (the DSM feed) + landing page
-build.sh        Local build script
-feed.sh         Regenerates feed/packages.json from GitHub Releases
-.github/        CI + release workflows
-dev/            Dev helpers (test checklist, format checks)
-```
+Tag and push `v*.*.*` to trigger the release workflow anyway — it'll build and publish a `.spk`, and regenerate the [feed](https://warting.github.io/synology-openclaw/) on GitHub Pages. Once signing is sorted, those artifacts become installable as-is.
 
 ## License
 

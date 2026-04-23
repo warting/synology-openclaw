@@ -1,0 +1,23 @@
+services:
+  openclaw:
+    image: ghcr.io/openclaw/openclaw:latest
+    container_name: openclaw
+    restart: unless-stopped
+
+    ports:
+      - "18789:18789"
+
+    environment:
+      OPENCLAW_SANDBOX: "0"
+      OPENCLAW_BIND: "0.0.0.0"
+
+    # Bind mounts relative to the compose file — Container Manager's
+    # Project wizard creates these as sibling dirs of the compose file
+    # (typically /volume1/docker/openclaw/config and .../workspace).
+    volumes:
+      - ./config:/home/node/.openclaw
+      - ./workspace:/home/node/.openclaw/workspace
+
+    # Deliberately NOT mounting /var/run/docker.sock.
+    # Model providers (Anthropic, OpenAI, Ollama, LM Studio, ...) are
+    # configured from within OpenClaw's own UI after it starts.

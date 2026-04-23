@@ -18,22 +18,20 @@ footer { margin-top: 3rem; font-size: 0.85em; opacity: 0.7; }
 <body>
 
 <h1>OpenClaw for Synology</h1>
-<p>Unofficial Synology DSM package that installs <a href="https://openclaw.ai">OpenClaw</a> via Container Manager. Install, upgrade, and uninstall from Package Center like any other DSM package.</p>
+<p>Run <a href="https://openclaw.ai">OpenClaw</a> on a Synology NAS via Container Manager. See <a href="https://github.com/warting/synology-openclaw">github.com/warting/synology-openclaw</a> for the compose file and install instructions.</p>
 
-<h2>Add the Package Source</h2>
+<h2>Install via Container Manager</h2>
 
 <ol>
-<li>On DSM, open <strong>Package Center &rarr; Settings &rarr; General</strong>, set <strong>Trust Level</strong> to <em>Any publisher</em>.</li>
-<li>Open <strong>Package Center &rarr; Settings &rarr; Package Sources &rarr; Add</strong>.</li>
-<li>Name: <code>warting</code>. Location:</li>
+<li>DSM &rarr; <strong>Container Manager</strong> &rarr; Project &rarr; Create.</li>
+<li>Project name: <code>openclaw</code>. Path: <code>docker/openclaw</code> in your <code>docker</code> shared folder.</li>
+<li>Source: <em>Create docker-compose.yml</em>. Paste the <code>compose.yml</code> from the GitHub repo linked above.</li>
+<li>Next &rarr; Done. Visit <code>http://&lt;your-nas-ip&gt;:18789/</code>.</li>
 </ol>
 
-<p class="url">https://warting.github.io/synology-openclaw/</p>
+<h2>SPK package (future)</h2>
 
-<ol start="4">
-<li>OK. Switch to the <strong>Community</strong> tab. <strong>OpenClaw</strong> should appear.</li>
-<li>Click <strong>Install</strong>. The wizard asks only for the web UI port (default <code>18789</code>). Configure your LLM providers (Anthropic, OpenAI, Ollama, LM Studio, &hellip;) from inside OpenClaw's own UI after install.</li>
-</ol>
+<p>A Synology Package Center .spk is in progress. DSM 7.2's unsigned-package validator currently refuses third-party packages that don't run as root and also refuses anything that does, so the SPK path is blocked until code signing is sorted out. Source lives in the repo above.</p>
 
 <h2>What gets installed</h2>
 
