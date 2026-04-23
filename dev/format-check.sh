@@ -7,7 +7,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
 echo "-- jq lint"
-for f in src/WIZARD_UIFILES/* feed/packages.json src/conf/resource src/package/ui/config; do
+for f in src/WIZARD_UIFILES/* feed/packages.json src/conf/privilege src/conf/resource src/package/ui/config; do
     echo "   $f"
     jq . "$f" >/dev/null
 done
