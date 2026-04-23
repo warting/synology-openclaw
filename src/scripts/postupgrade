@@ -1,39 +1,42 @@
 #!/bin/sh
 # Re-render docker-compose.yml from the new package, preserving the UI port
 # that the user originally picked at install.
-set -e
+
+LOG="${SYNOPKG_TEMP_LOGFILE:-/tmp/openclaw-install.log}"
+log() { echo "[$(date)] openclaw postupgrade: $*" >> "$LOG"; }
+log "starting"
 
 PKG_USER="openclaw"
 DATA_DIR="/volume1/docker/openclaw"
 
-# Re-assert docker group membership in case it got cleared between versions.
-for g in docker containermanager synocontainer; do
-    synogroup --memberadd "$g" "$PKG_USER" >/dev/null 2>&1 || true
-done
-
-# Recover the previously-chosen port from the existing compose file
-# ("ports: - "NNNNN:18789"") — otherwise fall back to the default.
-OLD="$DATA_DIR/docker-compose.yml"
+# Recover previously-chosen port from existing compose ("ports: - NNNNN:18789"),
+# falling back to the default.
 UI_PORT="18789"
+OLD="$DATA_DIR/docker-compose.yml"
 if [ -f "$OLD" ]; then
-    found="$(awk '/ports:/{f=1; next} f && /- "/{gsub(/.*"|:.*/, ""); print; exit}' "$OLD" || true)"
+    found="$(awk '/ports:/{f=1; next} f && /- "/{gsub(/.*"|:.*/, ""); print; exit}' "$OLD" 2>/dev/null || true)"
     [ -n "$found" ] && UI_PORT="$found"
+    log "preserved UI_PORT=$UI_PORT"
 fi
 
-sed -e "s|__UI_PORT__|$UI_PORT|g" \
-    "$SYNOPKG_PKGDEST/docker-compose.yml" \
-    > "$DATA_DIR/docker-compose.yml"
-chown "$PKG_USER":users "$DATA_DIR/docker-compose.yml" || true
-chmod 644 "$DATA_DIR/docker-compose.yml"
+if [ -f "$SYNOPKG_PKGDEST/docker-compose.yml" ]; then
+    sed -e "s|__UI_PORT__|$UI_PORT|g" \
+        "$SYNOPKG_PKGDEST/docker-compose.yml" \
+        > "$DATA_DIR/docker-compose.yml" 2>>"$LOG"
+fi
+chown "$PKG_USER":users "$DATA_DIR/docker-compose.yml" 2>>"$LOG" || true
+chmod 644 "$DATA_DIR/docker-compose.yml" 2>>"$LOG" || true
 
 # Refresh launcher port.
 LAUNCHER="$SYNOPKG_PKGDEST/ui/config"
 if [ -f "$LAUNCHER" ]; then
-    sed -i "s|__UI_PORT__|$UI_PORT|g" "$LAUNCHER"
+    sed -i "s|__UI_PORT__|$UI_PORT|g" "$LAUNCHER" 2>>"$LOG"
 fi
 
-# Pull new image before DSM restarts us.
-su - "$PKG_USER" -s /bin/sh -c "cd '$DATA_DIR' && docker compose pull" \
-    >> "$SYNOPKG_TEMP_LOGFILE" 2>&1 || true
+# Pull new image (best-effort, background).
+if command -v docker >/dev/null 2>&1; then
+    (cd "$DATA_DIR" && docker compose pull) >>"$LOG" 2>&1 &
+fi
 
+log "done"
 exit 0

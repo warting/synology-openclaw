@@ -2,42 +2,59 @@
 # Runs as root after package.tgz has been extracted to $SYNOPKG_PKGDEST.
 # wizard_* env vars come from WIZARD_UIFILES/install_uifile.
 #
-# Note: install scripts (preinst/postinst/preuninst/postuninst/pre+postupgrade)
-# always run as root regardless of conf/privilege. Only the package daemon
-# (start-stop-status) runs as the user defined there.
-set -e
+# Defensive: we'd rather complete the install with an unstartable service
+# than leave the NAS with a half-installed package, so we log every failure
+# but never exit non-zero (except if the install is impossible to recover).
+
+LOG="${SYNOPKG_TEMP_LOGFILE:-/tmp/openclaw-install.log}"
+log() { echo "[$(date)] openclaw postinst: $*" >> "$LOG"; }
+
+log "starting"
+log "SYNOPKG_PKGDEST=$SYNOPKG_PKGDEST"
+log "wizard_UI_PORT=${wizard_UI_PORT:-<unset>}"
 
 PKG_USER="openclaw"
 DATA_DIR="/volume1/docker/openclaw"
 
-# --- 1. Let our package user talk to the Docker daemon. ---
-# Try every group name Container Manager / Docker has used across DSM versions.
-for g in docker containermanager synocontainer; do
-    synogroup --memberadd "$g" "$PKG_USER" >/dev/null 2>&1 || true
-done
-
-# --- 2. Data directories. Container runs as node (UID 1000) internally, so
-# config + workspace must be writable by UID 1000. docker-compose.yml is read
-# by the docker *client* (the package user), so it goes to PKG_USER.
-mkdir -p "$DATA_DIR/config" "$DATA_DIR/workspace"
-chown -R 1000:1000 "$DATA_DIR/config" "$DATA_DIR/workspace"
-
-# --- 3. Render docker-compose.yml with the chosen UI port. ---
-UI_PORT="${wizard_UI_PORT:-18789}"
-sed -e "s|__UI_PORT__|$UI_PORT|g" \
-    "$SYNOPKG_PKGDEST/docker-compose.yml" \
-    > "$DATA_DIR/docker-compose.yml"
-chown "$PKG_USER":users "$DATA_DIR/docker-compose.yml" "$DATA_DIR" || true
-chmod 644 "$DATA_DIR/docker-compose.yml"
-
-# --- 4. Substitute the UI port into the DSM desktop launcher config. ---
-LAUNCHER="$SYNOPKG_PKGDEST/ui/config"
-if [ -f "$LAUNCHER" ]; then
-    sed -i "s|__UI_PORT__|$UI_PORT|g" "$LAUNCHER"
+# --- Data directories. ---
+if mkdir -p "$DATA_DIR/config" "$DATA_DIR/workspace" 2>>"$LOG"; then
+    log "created $DATA_DIR/{config,workspace}"
+else
+    log "ERROR creating data dirs"
 fi
 
-# --- 5. Pre-pull the image as the package user so layers land in its cache. ---
-su - "$PKG_USER" -s /bin/sh -c "cd '$DATA_DIR' && docker compose pull" \
-    >> "$SYNOPKG_TEMP_LOGFILE" 2>&1 || true
+# Container runs as node (UID 1000). Host-side package user reads
+# docker-compose.yml. Use numeric UID so this works even if node user
+# doesn't exist on host.
+chown -R 1000:1000 "$DATA_DIR/config" "$DATA_DIR/workspace" 2>>"$LOG" || log "chown config/workspace skipped"
 
+# --- Render docker-compose.yml with chosen UI port. ---
+UI_PORT="${wizard_UI_PORT:-18789}"
+if [ -f "$SYNOPKG_PKGDEST/docker-compose.yml" ]; then
+    sed -e "s|__UI_PORT__|$UI_PORT|g" \
+        "$SYNOPKG_PKGDEST/docker-compose.yml" \
+        > "$DATA_DIR/docker-compose.yml" 2>>"$LOG"
+    log "wrote $DATA_DIR/docker-compose.yml (port $UI_PORT)"
+else
+    log "ERROR: $SYNOPKG_PKGDEST/docker-compose.yml not found"
+fi
+
+chown "$PKG_USER":users "$DATA_DIR/docker-compose.yml" "$DATA_DIR" 2>>"$LOG" || log "chown (expected if package user not yet created)"
+chmod 644 "$DATA_DIR/docker-compose.yml" 2>>"$LOG" || true
+
+# --- Substitute the UI port into the DSM desktop launcher config. ---
+LAUNCHER="$SYNOPKG_PKGDEST/ui/config"
+if [ -f "$LAUNCHER" ]; then
+    sed -i "s|__UI_PORT__|$UI_PORT|g" "$LAUNCHER" 2>>"$LOG" && log "updated launcher config"
+fi
+
+# --- Pre-pull the image (best-effort). ---
+if command -v docker >/dev/null 2>&1; then
+    (cd "$DATA_DIR" && docker compose pull) >>"$LOG" 2>&1 &
+    log "docker compose pull started in background (pid $!)"
+else
+    log "docker not available, skipping pre-pull"
+fi
+
+log "done"
 exit 0
