@@ -1,5 +1,5 @@
 {
-    "SYNO.SDS.OpenClaw.Application": {
+    "com.github.warting.openclaw": {
         "title": "OpenClaw",
         "desc": "OpenClaw AI agent",
         "icon": "images/icon_256.png",

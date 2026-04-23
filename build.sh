@@ -36,8 +36,8 @@ rm "$STAGE/INFO.template"
 # 3. Optionally pin the OpenClaw image tag in the bundled compose file.
 if [ "$IMAGE_TAG" != "latest" ]; then
     sed -i.bak -e "s|openclaw:latest|openclaw:$IMAGE_TAG|g" \
-        "$STAGE/package/docker-compose.yml"
-    rm -f "$STAGE/package/docker-compose.yml.bak"
+        "$STAGE/package/openclaw/compose.yml"
+    rm -f "$STAGE/package/openclaw/compose.yml.bak"
 fi
 
 # 4. Pack package/ into package.tgz at the staging root.
@@ -48,6 +48,10 @@ fi
     -czf "$STAGE/package.tgz" \
     $(ls -A))
 rm -rf "$STAGE/package"
+
+# 4b. Append checksum (MD5 of package.tgz) to INFO — DSM validates this.
+PKG_MD5=$(md5 -q "$STAGE/package.tgz" 2>/dev/null || md5sum "$STAGE/package.tgz" | awk '{print $1}')
+echo "checksum=\"$PKG_MD5\"" >> "$STAGE/INFO"
 
 # 5. Strip macOS .DS_Store anywhere under the stage.
 find "$STAGE" -name ".DS_Store" -delete
@@ -60,12 +64,20 @@ chmod 755 "$STAGE/scripts/"*
 : > "$STAGE/syno_signature.asc"
 
 # 8. Tar everything into the .spk with an explicit file list (no "./" prefix),
-#    GNU-format, root:root ownership.
+#    GNU-format, root:root ownership. Order matches Synology's own packages:
+#    package.tgz first, then INFO, scripts, conf, icons, etc. DSM has been
+#    observed to reject archives where package.tgz isn't near the top.
+ENTRIES="package.tgz INFO"
+for d in scripts conf WIZARD_UIFILES; do
+    [ -d "$STAGE/$d" ] && ENTRIES="$ENTRIES $d"
+done
+ENTRIES="$ENTRIES PACKAGE_ICON.PNG PACKAGE_ICON_256.PNG syno_signature.asc"
+
 (cd "$STAGE" && tar \
     --format=gnutar \
     --uid 0 --gid 0 --uname root --gname root \
     -cf "$OUT" \
-    $(ls -A))
+    $ENTRIES)
 
 SIZE=$(wc -c < "$OUT" | tr -d ' ')
 SHA256=$(shasum -a 256 "$OUT" | awk '{print $1}')
